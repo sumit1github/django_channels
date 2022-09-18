@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+    {% load static %}
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <style>
+        .main-grid-container{
+            display: grid;
+            grid-template-columns: 60% 20%;
+        }
+        video{
+            border-radius: 5%;
+            background-color: black;
+        }
+    </style>
+  </head>
+  <body>
+    <center><h1 style="color:red">Welcome to the demo!</h1></center>
+    <center><h1 id="label-username">UserNme</center>
+    <center>
+        <div>
+            <input id="username"/><button id="btn-join">Join Room</button>
+        </div>
+    </center>
+    <div class="main-grid-container">
+        <div class="row">
+            <div class="col-md-1"></div>
+            <div class="col-md-5">
+                <div id="video-container">
+                    <!-- <video id="local-video" autoplay playsinline></video> -->
+                    <video id="local-video" autoplay></video>
+                    <!-- <video id="remote-video" autoplay></video>    -->
+                    <button id="btn-share-screen">Share Screen</button>
+                    <button id="btn-toogle-audio">Mute</button>
+                    <button id="btn-toogle-video">Disable Video</button>
+                </div>
+            </div>
+            <div class="col-md-5">
+                <div id="messages">
+                    <ul id="message-list">  </ul>
+    
+                </div>
+                <div>
+                    <input type="text" id="msg"><button id="btn-send-msg">Send Message</button>
+                </div>
+    
+            </div>
+            <div class="col-md-1"></div>
+    
+        </div>
+    </div>
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Optional JavaScript; choose one of the two! -->
+
+    <!-- Option 1: Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+    
+    <script>
+        
+        var usernameInput=document.querySelector('#username');
+        var btnJoin=document.querySelector('#btn-join');
+        var screen_share=document.querySelector('#btn-share-screen');
+        var username;
+        var webSocket;
+        function webSocketOnMessage(event){
+            var parseData=JSON.parse(event.data);
+            var message=parseData['message'];   
+            console.log('message',message);
+        }
+        btnJoin.addEventListener('click',function(){
+            username=usernameInput.value;
+            console.log(username);
+            if (username == ""){
+                return;
+            }
+            usernameInput.value="";
+            usernameInput.disabled=true;
+            usernameInput.style.visibiity='hidden';
+
+            btnJoin.disabled=true;
+            btnJoin.style.visibility='hidden';
+
+            var labelUsername=document.querySelector('#label-username');
+            labelUsername.innerHTML=username;
+
+            var loc=window.location;
+            var wsStart='ws://';
+            if (loc.protocol=='https:'){
+                wsStart='wss://'
+            }
+            var endPoint=wsStart+loc.host+loc.pathname
+            console.log(endPoint)
+            webSocket=new WebSocket(endPoint);
+            webSocket.addEventListener('open',(e)=>{
+                var jsonStr=JSON.stringify({
+                    'message':'Joining Message', 
+                })
+                webSocket.send(jsonStr);
+                sendSignal('new-peer',{});
+                console.log('connection opend')
+            });
+            webSocket.addEventListener('message',webSocketOnMessage);
+            webSocket.addEventListener('close',(e)=>{
+                console.log('connection closed')
+            });
+            webSocket.addEventListener('error',(e)=>{
+                console.log('connection error')
+            });
+
+            var localStream=new MediaStream();
+            const constraints={
+                video: {
+                    cursor: "always"
+                },
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    sampleRate: 44100
+                }
+            }
+            var userMedia=navigator.mediaDevices.getUserMedia(constraints)
+            .then(stream=>{
+                localStream=stream;
+                var localVideo=document.querySelector('#local-video');
+                localVideo.srcObject=localStream;
+                localVideo.muted=true;
+
+            })
+            .catch(err=>{
+                console.log(err);
+            });
+
+
+            screen_share.addEventListener("click",function(e){
+                startscreenShare();
+            });
+            var localVideo1=document.querySelector('#local-video');
+            async function startscreenShare(){
+                try{
+                    localVideo1.srcObject = await navigator.mediaDevices.getDisplayMedia(constraints);
+                }
+                catch(err){
+                    console.log(err);
+                }
+            }
+
+        function sendSignal(action,message){
+            var jsonStr=JSON.stringify({
+                'peer':username,
+                'action':action,
+                'message':message,
+            });
+            webSocket.send(jsonStr);
+        }
+
+        }); 
+    </script>
+    
+  </body>
+</html>
